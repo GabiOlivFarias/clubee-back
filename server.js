@@ -7,6 +7,8 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 
 const app = express();
 // No Vercel, use a porta que eles definem, ou 3001 localmente
+app.set('trust proxy', 1);
+// Permite que o Vercel/proxy defina cookies seguros
 const PORT = process.env.PORT || 3001; 
 
 // --- CONFIGURAÇÃO DO CORS ---
