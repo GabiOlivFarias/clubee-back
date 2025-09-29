@@ -83,3 +83,5 @@ app.get('/api/user/me', (req, res) => {
 app.listen(PORT, () => {
     console.log(`🎉 Servidor backend rodando em http://localhost:${PORT}`);
 });
+
+module.exports = app;
