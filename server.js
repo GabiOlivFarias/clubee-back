@@ -1,28 +1,48 @@
-require('dotenv').config(); // Garante que as variáveis sejam carregadas primeiro!
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const MemoryStore = require('express-session').MemoryStore; 
+
+const registeredUsers = []; 
+const zunzuns = [
+    {
+        id: 1,
+        author: "Google User",
+        text: "Meu primeiro zunzum na Clubee! Olá mundo!",
+        date: new Date().toISOString(),
+        likes: 5
+    }
+];
 
 const app = express();
-// No Vercel, use a porta que eles definem, ou 3001 localmente
 app.set('trust proxy', 1);
-// Permite que o Vercel/proxy defina cookies seguros
 const PORT = process.env.PORT || 3001; 
-
+const sessionStore = new MemoryStore(); 
 // --- CONFIGURAÇÃO DO CORS ---
 app.use(cors({
-    origin: process.env.CLIENT_URL, // Ex: http://localhost:5173 ou https://clubee-fullstack.vercel.app
+    //origin: process.env.CLIENT_URL, 
+    origin: 'http://localhost:5173',
     credentials: true
 }));
 
-// --- CONFIGURAÇÃO DA SESSÃO ---
+/*
+const allowedOrigin = process.env.CLIENT_URL || 'http://localhost:5173'; 
+
+app.use(cors({
+    origin: allowedOrigin, 
+    credentials: true
+}));
+*/
+// antes de subri pra produção retirar o trecho desde const allowedOrigin até o final da função app.use(cors)
+
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: true,
-    // Em produção (Vercel) você DEVE usar secure: true
+    store: sessionStore, 
     cookie: { 
         secure: process.env.NODE_ENV === 'production', 
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
@@ -33,8 +53,6 @@ app.use(express.json());
 app.use(passport.initialize());
 app.use(passport.session());
 
-// --- CONFIGURAÇÃO DO PASSPORT (Estratégia Google) ---
-// A variável BACKEND_URL deve ser definida no Vercel como 'https://clubee-back.vercel.app'
 const callbackUrl = process.env.BACKEND_URL ? 
     `${process.env.BACKEND_URL}/auth/google/callback` : 
     "/auth/google/callback";
@@ -46,6 +64,17 @@ passport.use(new GoogleStrategy({
     proxy: true 
 },
     function(accessToken, refreshToken, profile, cb) {
+         let user = registeredUsers.find(u => u.id === profile.id);
+         if (!user) {
+             user = {
+                 id: profile.id,
+                 displayName: profile.displayName,
+             };
+             registeredUsers.push(user);
+             console.log(`✅ Novo usuário registrado: ${user.displayName}`);
+         } else {
+             console.log(`👤 Usuário já registrado: ${user.displayName}`);
+         }
         return cb(null, profile);
     }
 ));
@@ -57,7 +86,6 @@ passport.deserializeUser((user, done) => {
     done(null, user);
 });
 
-// --- ROTAS DE AUTENTICAÇÃO ---
 app.get('/auth/google',
     passport.authenticate('google', { scope: ['profile', 'email'] }));
 
@@ -78,7 +106,6 @@ app.get('/auth/logout', (req, res, next) => {
     });
 });
 
-// --- Rota de Verificação de Login e Rota Raiz (Vercel) ---
 app.get('/api/user/me', (req, res) => {
     if (req.user) {
         res.json({ success: true, user: req.user });
@@ -87,15 +114,53 @@ app.get('/api/user/me', (req, res) => {
     }
 });
 
-// 💡 CORREÇÃO VERCEL: Rota padrão para / que evita o erro "Cannot GET /"
 app.get('/', (req, res) => {
     res.send('Clubee Backend is running.');
 });
 
+// TESTE ZUMZUM
+const isAuthenticated = (req, res, next) => {
+    if (req.user) {
+        next(); 
+    } else {
+        res.status(401).json({ success: false, message: "Não autorizado" });
+    }
+};
 
-// --- INICIAR O SERVIDOR ---
+app.get('/api/zunzuns', (req, res) => {
+    const sortedZunzuns = [...zunzuns].sort((a, b) => new Date(b.date) - new Date(a.date));
+    res.json(sortedZunzuns);
+});
 
-// Só inicia o listen se não estiver em ambiente de produção (Vercel)
+app.get('/api/users', isAuthenticated, (req, res) => {
+    const userList = registeredUsers.map(u => ({
+        id: u.id,
+        displayName: u.displayName
+    }));
+    res.json({ success: true, users: userList });
+});
+
+app.post('/api/zunzuns', isAuthenticated, (req, res) => {
+    const { text } = req.body;
+    
+    if (!text || text.length > 280) {
+        return res.status(400).json({ success: false, message: "Texto do zunzum inválido." });
+    }
+    
+    const newZunzum = {
+        id: Date.now(),
+        author: req.user.displayName, 
+        text: text,
+        date: new Date().toISOString(),
+        likes: 0
+    };
+    
+    zunzuns.push(newZunzum);
+    console.log(`Novo Zunzum de ${newZunzum.author}: ${newZunzum.text}`);
+    
+    res.status(201).json({ success: true, zunzum: newZunzum });
+});
+
 if (process.env.NODE_ENV !== 'production') {
     app.listen(PORT, () => {
         console.log(`🎉 Servidor backend rodando em http://localhost:${PORT}`);
