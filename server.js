@@ -23,8 +23,8 @@ const PORT = process.env.PORT || 3001;
 const sessionStore = new MemoryStore(); 
 // --- CONFIGURAÇÃO DO CORS ---
 app.use(cors({
-    //origin: process.env.CLIENT_URL, 
-    origin: 'http://localhost:5173',
+    origin: process.env.CLIENT_URL, 
+    //origin: 'http://localhost:5173',
     credentials: true
 }));
 
