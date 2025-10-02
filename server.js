@@ -13,7 +13,8 @@ const zunzuns = [
         author: "Google User",
         text: "Meu primeiro zunzum na Clubee! Olá mundo!",
         date: new Date().toISOString(),
-        likes: 5
+        likes: 5,
+        isAnonymous: false
     }
 ];
 
@@ -26,7 +27,8 @@ app.use(cors({
     origin: process.env.CLIENT_URL, 
     //origin: 'http://localhost:5173',
     credentials: true
-}));
+    }));
+    
 
 /*
 const allowedOrigin = process.env.CLIENT_URL || 'http://localhost:5173'; 
@@ -141,23 +143,28 @@ app.get('/api/users', isAuthenticated, (req, res) => {
 });
 
 app.post('/api/zunzuns', isAuthenticated, (req, res) => {
-    const { text } = req.body;
+    const { text, isAnonymous } = req.body;
     
     if (!text || text.length > 280) {
-        return res.status(400).json({ success: false, message: "Texto do zunzum inválido." });
+        return res.status(400).json({ success: false, message: "Texto do zunzum inválido (máx 280 caracteres)." });
     }
     
+    const authorName = isAnonymous
+        ? "Abelha Anônima 🤫" // Apelido para posts anônimos
+        : req.user.displayName; // Nome real
+
     const newZunzum = {
         id: Date.now(),
-        author: req.user.displayName, 
+        author: authorName,
         text: text,
         date: new Date().toISOString(),
-        likes: 0
+        likes: 0,
+        isAnonymous: !!isAnonymous // Garante que é booleano
     };
-    
+
     zunzuns.push(newZunzum);
-    console.log(`Novo Zunzum de ${newZunzum.author}: ${newZunzum.text}`);
-    
+    console.log(`Novo Zunzum de ${newZunzum.author} (Anônimo: ${newZunzum.isAnonymous}): ${newZunzum.text}`);
+
     res.status(201).json({ success: true, zunzum: newZunzum });
 });
 
