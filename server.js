@@ -148,7 +148,7 @@ const isAuthenticated = (req, res, next) => {
 
 //endpoints
 
-aapp.get('/api/zunzuns', (req, res) => {
+app.get('/api/zunzuns', (req, res) => {
     db.all(`SELECT * FROM zunzuns ORDER BY date DESC`, [], (err, rows) => {
         if (err) {
             console.error("Erro ao buscar zunzuns:", err);
