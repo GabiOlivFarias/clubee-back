@@ -5,8 +5,15 @@ const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const MemoryStore = require('express-session').MemoryStore; 
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
 
 const registeredUsers = []; 
+const db = new sqlite3.Database(path.join(__dirname, 'zunzuns.db'), (err) => {
+    if (err) console.error("Erro ao abrir banco:", err);
+    else console.log("✅ Banco SQLite conectado.");
+});
+/*
 const zunzuns = [
     {
         id: 1,
@@ -17,6 +24,17 @@ const zunzuns = [
         isAnonymous: false
     }
 ];
+*/
+db.run(`
+    CREATE TABLE IF NOT EXISTS zunzuns (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        author TEXT NOT NULL,
+        text TEXT NOT NULL,
+        date TEXT NOT NULL,
+        likes INTEGER DEFAULT 0,
+        isAnonymous INTEGER DEFAULT 0
+    )
+`);
 
 const app = express();
 app.set('trust proxy', 1);
@@ -29,15 +47,14 @@ app.use(cors({
     credentials: true
     }));
     
-
-/*
-const allowedOrigin = process.env.CLIENT_URL || 'http://localhost:5173'; 
-
-app.use(cors({
-    origin: allowedOrigin, 
-    credentials: true
-}));
-*/
+    /*
+    const allowedOrigin = process.env.CLIENT_URL || 'http://localhost:5173'; 
+    
+    app.use(cors({
+        origin: allowedOrigin, 
+        credentials: true
+    }));
+    */
 // antes de subri pra produção retirar o trecho desde const allowedOrigin até o final da função app.use(cors)
 
 app.use(session({
@@ -129,11 +146,54 @@ const isAuthenticated = (req, res, next) => {
     }
 };
 
-app.get('/api/zunzuns', (req, res) => {
-    const sortedZunzuns = [...zunzuns].sort((a, b) => new Date(b.date) - new Date(a.date));
-    res.json(sortedZunzuns);
+//endpoints
+
+aapp.get('/api/zunzuns', (req, res) => {
+    db.all(`SELECT * FROM zunzuns ORDER BY date DESC`, [], (err, rows) => {
+        if (err) {
+            console.error("Erro ao buscar zunzuns:", err);
+            return res.status(500).json({ success: false, message: "Erro no banco." });
+        }
+        res.json(rows);
+    });
 });
 
+// POST - criar novo post
+app.post('/api/zunzuns', isAuthenticated, (req, res) => {
+    const { text, isAnonymous } = req.body;
+
+    if (!text || text.length > 280) {
+        return res.status(400).json({ success: false, message: "Texto inválido (máx 280 caracteres)." });
+    }
+
+    const authorName = isAnonymous
+        ? "Abelha Anônima 🤫"
+        : req.user.displayName;
+
+    const now = new Date().toISOString();
+
+    const query = `INSERT INTO zunzuns (author, text, date, likes, isAnonymous) VALUES (?, ?, ?, ?, ?)`;
+    db.run(query, [authorName, text, now, 0, isAnonymous ? 1 : 0], function (err) {
+        if (err) {
+            console.error("Erro ao inserir zunzum:", err);
+            return res.status(500).json({ success: false, message: "Erro ao salvar zunzum." });
+        }
+
+        const newZunzum = {
+            id: this.lastID,
+            author: authorName,
+            text,
+            date: now,
+            likes: 0,
+            isAnonymous: !!isAnonymous
+        };
+
+        console.log(`Novo Zunzum de ${newZunzum.author}: ${newZunzum.text}`);
+        res.status(201).json({ success: true, zunzum: newZunzum });
+    });
+});
+
+// --- USERS ---
 app.get('/api/users', isAuthenticated, (req, res) => {
     const userList = registeredUsers.map(u => ({
         id: u.id,
@@ -142,37 +202,10 @@ app.get('/api/users', isAuthenticated, (req, res) => {
     res.json({ success: true, users: userList });
 });
 
-app.post('/api/zunzuns', isAuthenticated, (req, res) => {
-    const { text, isAnonymous } = req.body;
-    
-    if (!text || text.length > 280) {
-        return res.status(400).json({ success: false, message: "Texto do zunzum inválido (máx 280 caracteres)." });
-    }
-    
-    const authorName = isAnonymous
-        ? "Abelha Anônima 🤫" // Apelido para posts anônimos
-        : req.user.displayName; // Nome real
-
-    const newZunzum = {
-        id: Date.now(),
-        author: authorName,
-        text: text,
-        date: new Date().toISOString(),
-        likes: 0,
-        isAnonymous: !!isAnonymous // Garante que é booleano
-    };
-
-    zunzuns.push(newZunzum);
-    console.log(`Novo Zunzum de ${newZunzum.author} (Anônimo: ${newZunzum.isAnonymous}): ${newZunzum.text}`);
-
-    res.status(201).json({ success: true, zunzum: newZunzum });
-});
-
 if (process.env.NODE_ENV !== 'production') {
     app.listen(PORT, () => {
         console.log(`🎉 Servidor backend rodando em http://localhost:${PORT}`);
     });
 }
-
 
 module.exports = app;
