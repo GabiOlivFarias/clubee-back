@@ -118,6 +118,18 @@ const isAuthenticated = (req, res, next) => {
 };
 
 // ----------------------------------------------------------
+// ROTA PARA VER LOGINS
+// ----------------------------------------------------------
+app.get("/api/logins", async (req, res) => {
+  try {
+    const logs = await LoginLog.find().sort({ date: -1 }); // mais recentes primeiro
+    res.json({ success: true, logs });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Erro ao buscar logs" });
+  }
+});
+
+// ----------------------------------------------------------
 // ZUNZUNS (Mock)
 // ----------------------------------------------------------
 const zunzuns = [
