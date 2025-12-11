@@ -21,10 +21,13 @@ app.set("trust proxy", 1);
 const adminRoutes = require("./src/routes/adminRoutes");
 app.use("/admin", adminRoutes);
 
+const progressRoutes = require('./src/routes/progressRoutes');
+app.use('/api/progress', progressRoutes);
+
 // Porta
 const PORT = process.env.PORT || 3001;
 
-// CORS
+// cors
 const allowedOrigin = process.env.CLIENT_URL || "http://localhost:5173";
 app.use(
   cors({
@@ -33,7 +36,7 @@ app.use(
   })
 );
 
-// Sessão armazenada no MongoDB
+// Sessoo armazenada no MongoDB
 app.use(
   session({
     secret: process.env.SESSION_SECRET,
@@ -57,9 +60,7 @@ app.use(express.json());
 app.use(passport.initialize());
 app.use(passport.session());
 
-// ----------------------------------------------------------
 // AUTENTICAÇÃO GOOGLE
-// ----------------------------------------------------------
 
 // Inicia login
 app.get(
@@ -67,7 +68,7 @@ app.get(
   passport.authenticate("google", { scope: ["profile", "email"] })
 );
 
-// Callback Google
+// Callback Goog
 app.get(
   "/auth/google/callback",
   passport.authenticate("google", {
@@ -104,7 +105,7 @@ app.get("/auth/logout", (req, res, next) => {
   });
 });
 
-// Quem está logado?
+// Quem está logado
 app.get("/api/user/me", (req, res) => {
   if (req.user) return res.json({ success: true, user: req.user });
 
@@ -117,21 +118,17 @@ const isAuthenticated = (req, res, next) => {
   res.status(401).json({ success: false, message: "Não autorizado" });
 };
 
-// ----------------------------------------------------------
 // ROTA PARA VER LOGINS
-// ----------------------------------------------------------
 app.get("/api/logins", async (req, res) => {
   try {
-    const logs = await LoginLog.find().sort({ date: -1 }); // mais recentes primeiro
+    const logs = await LoginLog.find().sort({ date: -1 });
     res.json({ success: true, logs });
   } catch (err) {
     res.status(500).json({ success: false, error: "Erro ao buscar logs" });
   }
 });
 
-// ----------------------------------------------------------
 // ZUNZUNS (Mock)
-// ----------------------------------------------------------
 const zunzuns = [
   {
     id: 1,
@@ -174,16 +171,12 @@ app.post("/api/zunzuns", isAuthenticated, (req, res) => {
   res.status(201).json({ success: true, zunzum: newZunzum });
 });
 
-// ----------------------------------------------------------
 // ROTA ROOT
-// ----------------------------------------------------------
 app.get("/", (req, res) => {
   res.send("Clubee Backend is running.");
 });
 
-// ----------------------------------------------------------
 // SERVIDOR
-// ----------------------------------------------------------
 app.listen(PORT, () => {
   console.log(`🎉 Servidor backend rodando em http://localhost:${PORT}`);
 });
