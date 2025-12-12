@@ -13,7 +13,7 @@ connectDB();
 const app = express();
 app.set("trust proxy", 1);
 
-// ---------- CORS (CORRIGIDO) ----------
+// ---------- CORS ----------
 const allowedOrigins = [
   process.env.CLIENT_URL,       // produção
   "http://localhost:5173"       // local
@@ -29,7 +29,7 @@ app.use(
 // ---------- BODY PARSER ----------
 app.use(express.json());
 
-// ---------- SESSION (CORRIGIDO PARA DEPLOY) ----------
+// ---------- SESSION ----------
 app.use(
   session({
     secret: process.env.SESSION_SECRET,
