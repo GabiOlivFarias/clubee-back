@@ -2,10 +2,12 @@ const express = require('express');
 const router = express.Router();
 const Progress = require('../models/Progress');
 
-// Middleware que exige login
 const isAuthenticated = (req, res, next) => {
   if (req.user) return next();
-  return res.status(401).json({ success: false, message: 'Não autorizado' });
+  return res.status(401).json({
+    success: false,
+    message: 'Não autorizado'
+  });
 };
 
 router.get('/', isAuthenticated, async (req, res) => {
@@ -46,7 +48,7 @@ router.post('/', isAuthenticated, async (req, res) => {
       });
     }
 
-    activityId = String(activityId); 
+    activityId = String(activityId);
 
     const update = {
       completed,
